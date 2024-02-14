@@ -30,11 +30,8 @@ def parse_file(uploaded_file, issues):
 
                 for issue, value in issues.items():
                     if value:
-                        print(issue, value)
                         prompt = create_prompt(string_data, df, issue)
-                        print(prompt)
                         prompt_name = f"{issue} - {uploaded_file.name.split('.')[0]}"
-                        print(prompt_name)
 
                         with open(f"prompts/{prompt_name}", 'w') as f:
                             f.write(prompt)
