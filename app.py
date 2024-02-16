@@ -5,6 +5,8 @@ from parse_trace import parse_to_df, create_prompt
 from chatUtils import open_client, generate_analysis, ISSUE_LABELS
 import os
 
+#Title
+st.set_page_config(page_title="ION: I/O Navigator")
 
 # Sidebar
 st.sidebar.title("Options")
@@ -28,7 +30,12 @@ issues = {
 }
 
 
-def parse_file(uploaded_file):
+def parse_file(uploaded_file) -> str:
+    """
+    Verifies that a proper text file is uploaded and then parses the log file into a CSV file, returning the file path
+    :param uploaded_file:
+    :return:
+    """
     if uploaded_file is None:
         st.warning("Please make sure you uploaded a proper Darshan trace!", icon="⚠")
     else:
@@ -47,18 +54,13 @@ def parse_file(uploaded_file):
             except Exception as e:
                 st.exception(f"I am sorry. Something wrong occurred, please try again: {e}")
 
-components.html(
-    """
-     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-    <div class="text-center">
-        <h1>ION: I/O Navigator</h1>
-        <h3> <em>Guiding Users to Optimal I/O performance</em> </h3>
-    </div>
-    """
-)
 
+# Render HTML
+with open("./assets/app.html") as f:
+    page = f.read()
+    components.html(page)
+
+# File Upload Form
 new_file = None
 with st.form("main_form"):
     uploaded_file = st.file_uploader("Please enter your Darshan DXT Trace (txt files only)")
@@ -72,6 +74,7 @@ with st.form("main_form"):
         print(new_file)
 
     if submit and new_file is not None:
+        #Extract selected issues from checklist
         selected_issues = [issue for issue, value in issues.items() if value]
         print(selected_issues)
         diagnoses, summary, failures = generate_analysis(chat_client, new_file, selected_issues)
