@@ -89,10 +89,12 @@ with st.form("main_form"):
         #Extract selected issues from checklist
         selected_issues = [issue for issue, value in issues.items() if value]
         assistant, chat_file, chat_formatted_issues = setup_chat(chat_client, new_file, selected_issues)
-        diagnosis_expanders = {issue: st.expander(f"{issue} Analysis:") for issue in chat_formatted_issues}
+        tabs = st.tabs(chat_formatted_issues)
+        tabs = {chat_formatted_issues[i]: tabs[i] for i in range(len(chat_formatted_issues))}
+        
         progress_bars = {}
-        for issue in diagnosis_expanders:
-            with diagnosis_expanders[issue]:
+        for issue in tabs:
+            with tabs[issue]:
                 progress_bars[issue] = st.progress(0)
     
         diagnosis_runs, diagnosis_run_status, diagnosis_threads = get_all_diagnoses(chat_client, assistant, chat_file.id, chat_formatted_issues)
@@ -105,7 +107,7 @@ with st.form("main_form"):
         for timeout_step in range(200):
             run_status = query_diagnosis_runs(chat_client, in_progress_threads, in_progress_runs)
             for i, issue in enumerate(run_status.keys()):
-                with diagnosis_expanders[issue]:
+                with tabs[issue]:
                     if run_status[issue] == "in_progress":
                         cur_val = timeout_step / 199
                         progress_bars[issue].progress(cur_val)
@@ -125,11 +127,18 @@ with st.form("main_form"):
             if len(completed_diagnosis_runs) > 0:
                 new_diagnoses, failed_runs = get_final_diagnoses(chat_client, completed_diagnosis_threads, completed_diagnosis_runs)
                 for i, issue in enumerate(new_diagnoses.keys()):
-                    with diagnosis_expanders[issue]:
-                        st.markdown(f"{new_diagnoses[issue]['text']}")
-                        if len(new_diagnoses[issue]['images']) > 0:
-                            for image in new_diagnoses[issue]['images']:
-                                st.image(image['local_path'])
+                    with tabs[issue]:
+                        #TODO: Add steps expander
+                        with st.expander(f"code"):
+                            for input in new_diagnoses[issue]['code_inputs']:
+                                st.code(input)
+                            for output in new_diagnoses[issue]['code_results']:
+                                st.code(output)
+                        with st.expander(f"summary"):
+                            st.markdown(f"{new_diagnoses[issue]['text']}")
+                            if len(new_diagnoses[issue]['images']) > 0:
+                                for image in new_diagnoses[issue]['images']:
+                                    st.image(image['local_path'])
                 final_diagnoses.update(new_diagnoses)
                 completed_diagnosis_runs = {}
                 completed_diagnosis_threads = {}
