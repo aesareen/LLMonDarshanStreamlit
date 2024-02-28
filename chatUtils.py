@@ -20,13 +20,22 @@ ISSUES = {
                             3. Requests from different processes are overlapped in terms of time.\n\
                             4. Requests from different processes fall into the same file stripe, i.e., the offsets of these requests are within the stripe size of the file. The stripe size is 1MB.\n\
                         Please use the provided information and think step by step to diagnose whether the attached trace file contains any shared file I/O behavior which may be cause for concern. Following your analysis, write a brief summary of your diagnosis in the following format:\n\
+                        Diagnosis: <summary of your diagnosis>",
+    'high_metadata_io': "HPC I/O works in the following way. All the ranks (processes) running on different computing nodes will issue metadata I/O requests to different MDS servers, which are the metadata servers. If an application has a high metadata issue, it means that the application is issuing a large number of metadata I/O requests. If the amount metadata operations approaches the total size or amount of regular I/O operations and these are in quick succession, it may cause uneccessary strain on the metadata servers, and in extreme cases, it may create a bottleneck for the application an the system.\n\
+                        To identify if an application has a high metadata issue, we need to take following items into consideration\n\
+                            1. The amount of time conducting metadata operations is similar to that of regular I/O operations\n\
+                            2. The number of metadata operations is comparable to regular I/O operations and both are significant.\n\
+                            3. The amount of time conducting metadata operations is significant to the total runtime of the application.\n\
+                        Please use the provided information and think step by step to diagnose whether the attached trace file contains any high metadata I/O behavior which may be cause for concern. Following your analysis, write a brief summary of your diagnosis in the following format:\n\
                         Diagnosis: <summary of your diagnosis>"
+                            
 }
 ISSUE_LABELS = {
     'small_io': "Small I/O",
     'random_io': "Random I/O",
     'load_imbalanced_io': "Load Imbalanced I/O",
-    'shared_file_io': "Shared File I/O"
+    'shared_file_io': "Shared File I/O",
+    'high_metadata_io': "High Metadata I/O"
 }
 COLUMN_DESCRIPTION = {
         "file_id": "unique ID assigned to each file",
@@ -135,16 +144,20 @@ def extract_code_from_run_steps(run_steps):
     for step in run_steps[::-1]:
         if step.step_details.type == 'tool_calls':
             for tool_call in step.step_details.tool_calls:
+                failed = False
                 if tool_call.type == 'code_interpreter':
                     input_code = tool_call.code_interpreter.input
                     results = ""
                     outputs = tool_call.code_interpreter.outputs
                     for output in outputs:
                         if output.type == 'logs':
+                            if "Traceback" in output.logs:
+                                failed = True
+                                break
                             results += output.logs
-                    
-                    code_inputs.append(input_code)
-                    code_results.append(results)
+                    if not failed:
+                        code_inputs.append(input_code)
+                        code_results.append(results)
     return code_inputs, code_results
 
 def get_final_diagnoses(client, threads, runs):

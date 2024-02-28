@@ -24,12 +24,14 @@ small_io = st.sidebar.checkbox("Small I/O")
 random_io = st.sidebar.checkbox("Random I/O")
 load_imbalanced_io = st.sidebar.checkbox("Load Imbalance")
 shared_file_io = st.sidebar.checkbox("Shared File I/O")
+high_metadata_io = st.sidebar.checkbox("High Metadata I/O")
 
 issues = {
     ISSUE_LABELS["small_io"]: small_io,
     ISSUE_LABELS["random_io"]: random_io,
     ISSUE_LABELS["load_imbalanced_io"]: load_imbalanced_io,
-    ISSUE_LABELS["shared_file_io"]: shared_file_io
+    ISSUE_LABELS["shared_file_io"]: shared_file_io,
+    ISSUE_LABELS["high_metadata_io"]: high_metadata_io
 }
 
 
