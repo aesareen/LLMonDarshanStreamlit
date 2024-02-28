@@ -133,6 +133,7 @@ def extract_code_from_run_steps(run_steps):
     code_results = []
     # iterate through the steps in reverse order
     for step in run_steps[::-1]:
+        # print(f"Code Run Step: {step}")
         if step.step_details.type == 'tool_calls':
             for tool_call in step.step_details.tool_calls:
                 if tool_call.type == 'code_interpreter':
@@ -147,6 +148,30 @@ def extract_code_from_run_steps(run_steps):
                     code_results.append(results)
     return code_inputs, code_results
 
+
+def extract_steps_message_ids(run_steps):
+    message_ids = []
+    for step in run_steps[::-1]:
+        if step.step_details.type == 'message_creation':
+            message_ids.append(step.step_details.message_creation.message_id)
+    return message_ids
+
+
+def extract_steps_from_threads(threads, message_ids):
+    steps = []
+    for message in message_ids:
+        for thread_message in threads:
+            if message == thread_message.id:
+                content = thread_message.content[0].text.value
+
+                # We don't want the diagnosis content repeated in the steps
+                if "Diagnosis" in content:
+                    content = content.split("Diagnosis:")[0].replace("**", '')
+
+                steps.append(content)
+    return steps
+
+
 def get_final_diagnoses(client, threads, runs):
     diagnoses = {}
     failed_runs = {}
@@ -158,14 +183,17 @@ def get_final_diagnoses(client, threads, runs):
         else:
             run_steps = client.beta.threads.runs.steps.list(thread_id=threads[issue].id, run_id=runs[issue].id).data
             code_inputs, code_results = extract_code_from_run_steps(run_steps)
+            steps_message_ids = extract_steps_message_ids(run_steps)
             thread_messages = client.beta.threads.messages.list(thread_id=threads[issue].id).data
+            steps = extract_steps_from_threads(thread_messages, steps_message_ids)
+            # print(f"STEPS: {steps}")
             final_message = thread_messages[0]
             images = []
             for message_content in final_message.content:
-                #print(message_content)
+                # print(f"Message content:{message_content}")
                 if message_content.type == 'text':
                     if "Diagnosis:" in message_content.text.value:
-                        diagnoses[issue]['text'] = message_content.text.value.split("Diagnosis:")[1]
+                        diagnoses[issue]['text'] = message_content.text.value.split("Diagnosis:")[1].replace("**", '')
                     else:
                         diagnoses[issue]['text'] = message_content.text.value
                 else:
@@ -185,6 +213,7 @@ def get_final_diagnoses(client, threads, runs):
             diagnoses[issue]['images'] = images
             diagnoses[issue]['code_inputs'] = code_inputs
             diagnoses[issue]['code_results'] = code_results
+            diagnoses[issue]['steps'] = steps
 
             
     return diagnoses, failed_runs
